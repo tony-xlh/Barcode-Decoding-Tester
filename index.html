@@ -41,7 +41,7 @@
   </div>
   <div>
     <p>Template for Dynamsoft Barcode Reader:</p>
-    <textarea style="width:250px;height:100px;"></textarea>
+    <textarea id="template" style="width:250px;height:100px;"></textarea>
   </div>
   
   <script>
@@ -63,6 +63,7 @@
         if (!readerDBR) {
           await initDBR();
         }
+        await updateDBRRuntimeSettings();
         let results = await readerDBR.decode(img);
         wrappedResults = wrapResultsDBR(results);
       }else if (engine === "ZXing") {
@@ -89,6 +90,11 @@
 
     async function initDBR(){
       readerDBR = await Dynamsoft.DBR.BarcodeReader.createInstance();
+    }
+
+    async function updateDBRRuntimeSettings(){
+      let template = document.getElementById("template").textContent;
+      await readerDBR.initRuntimeSettingsWithString("")
     }
 
     function initZXing(){
@@ -198,7 +204,7 @@
     function loadTemplateFromURL(){
       let template = getUrlParam("template");
       if (template) {
-        document.getElementsByTagName("textarea")[0].textContent = template;
+        document.getElementById("template").textContent = template;
       }
     }
 
