@@ -65,8 +65,8 @@
     }
 
     async function updateDBRRuntimeSettings(){
-      let template = document.getElementById("template").textContent;
-      await readerDBR.initRuntimeSettingsWithString("")
+      let template = document.getElementById("template").value;
+      await readerDBR.initRuntimeSettingsWithString(template)
     }
 
     function wrapResultsDBR(results){

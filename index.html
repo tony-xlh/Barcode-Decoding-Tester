@@ -93,8 +93,9 @@
     }
 
     async function updateDBRRuntimeSettings(){
-      let template = document.getElementById("template").textContent;
-      await readerDBR.initRuntimeSettingsWithString("")
+      let template = document.getElementById("template").value;
+      console.log(template);
+      await readerDBR.initRuntimeSettingsWithString(template)
     }
 
     function initZXing(){
