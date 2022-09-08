@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Barcode Reader</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=0" />
+  <style>
+    .barcode-polygon {
+      fill:rgba(85,240,40,0);
+      stroke:green;
+      stroke-width:5;
+    }
+    
+    .barcode-polygon:hover {
+      fill:rgba(85,240,40,0.5);
+      stroke:green;
+      stroke-width:5;
+    }
+
+    #resultSVG {
+      max-width: 500px;
+    }
+    </style>
+</head>
+
+<body>
+  <div>
+    Engine: 
+    <select id="engine">
+      <option>Dynamsoft Barcode Reader</option>
+      <option>ZXing</option>
+      <option>ZBar</option>
+    </select>
+  </div>
+  <div>
+    <svg id="resultSVG" version="1.1" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
+  <div>
+    <p>Template for Dynamsoft Barcode Reader:</p>
+    <textarea style="width:250px;height:100px;"></textarea>
+  </div>
+  
+  <script>
+    window.onload = function() {
+      loadImageFromURL();
+      loadTemplateFromURL();
+    }
+
+
+    function loadImageFromURL(){
+      let imgsrc = getUrlParam("imgsrc");
+      if (imgsrc) {
+        const img = new Image();
+        img.src = imgsrc;
+        img.onload = function(){
+          let dataURL = getDataURLFromImg(img);
+          let svgElement = document.getElementById("resultSVG");
+          let svgImage = document.createElementNS("http://www.w3.org/2000/svg", "image");
+          svgImage.setAttribute("href",dataURL);
+          svgElement.setAttribute("viewBox","0 0 "+img.width+" "+img.height);
+          svgElement.appendChild(svgImage);
+        }
+      }
+    }
+
+    function loadTemplateFromURL(){
+      let template = getUrlParam("template");
+      if (template) {
+        document.getElementsByTagName("textarea")[0].textContent = template;
+      }
+    }
+
+    function getDataURLFromImg(img) {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      //ctx.getImageData(0, 0, img.width, img.height);
+      return canvas.toDataURL();
+    };
+
+    function getEngine(){
+      var engine =  document.getElementById("engine").value;
+      return engine;
+    }
+    
+    function getUrlParam(name) {
+      var reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)");
+      var r = window.location.search.substr(1).match(reg);
+      if (r != null) return unescape(r[2]); return null;
+    }
+  </script>
+</body>
+
+</html>
