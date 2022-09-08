@@ -78,6 +78,7 @@
         wrappedResults = wrapResultsZBar(results);
       }
       console.log(wrappedResults);
+      overlayResults(wrappedResults);
       document.getElementById("status").innerText = "";
     }
 
@@ -138,6 +139,39 @@
         wrappedResultArray.push(wrappedResult);
       }
       return wrappedResultArray;
+    }
+
+    function overlayResults(results){
+      let svgElement = document.getElementById("resultSVG");
+      clearElements(svgElement,"polygon");
+      for (let i = 0; i < results.length; i++) {
+        const result = results[i];
+        let a = document.createElementNS("http://www.w3.org/2000/svg","a");
+        let polygon = document.createElementNS("http://www.w3.org/2000/svg","polygon");
+        polygon.setAttribute("points",getPointsAttributeFromArray(result.points));
+        polygon.setAttribute("class","barcode-polygon");
+        let title = document.createElementNS("http://www.w3.org/2000/svg","title");
+        title.textContent = result.barcodeFormat + ": " + result.barcodeText;
+        polygon.append(title);
+        a.append(polygon)
+        svgElement.append(a);
+      }
+    }
+
+    function getPointsAttributeFromArray(points) {
+      let value = "";
+      points.forEach(point => {
+        value = value + point.x + " " + point.y + " ";
+      });
+      return value.trim();
+    }
+
+    function clearElements(parent,tagName){
+      let elements=parent.getElementsByTagName(tagName);
+      while (elements.length>0){
+        let ele=elements[0];
+        ele.remove();
+      }
     }
 
 
