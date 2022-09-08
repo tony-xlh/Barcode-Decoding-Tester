@@ -2,6 +2,9 @@
 <html>
 <head>
   <title>Barcode Reader</title>
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@undecaf/zbar-wasm@0.9.11/dist/index.js"></script>
+  <script type="text/javascript" src="https://unpkg.com/@zxing/browser@latest"></script>
+  <script type="text/javascript" src="https://unpkg.com/dynamsoft-javascript-barcode@9.2.13/dist/dbr.js"></script>
   <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=0" />
   <style>
     .barcode-polygon {
@@ -30,6 +33,8 @@
       <option>ZXing</option>
       <option>ZBar</option>
     </select>
+    <button onclick="decode()">Decode</button>
+    <span id="status"></span>
   </div>
   <div>
     <svg id="resultSVG" version="1.1" xmlns="http://www.w3.org/2000/svg"></svg>
@@ -40,22 +45,111 @@
   </div>
   
   <script>
+    let readerDBR;
+    let readerZXing;
+    let readerZBar = zbarWasm;
+    let img;
+
     window.onload = function() {
       loadImageFromURL();
       loadTemplateFromURL();
+    }
+
+    async function decode(){
+      let engine = getEngine();
+      document.getElementById("status").innerText = "decoding...";
+      let wrappedResults;
+      if (engine === "Dynamsoft Barcode Reader") {
+        if (!readerDBR) {
+          await initDBR();
+        }
+        let results = await readerDBR.decode(img);
+        wrappedResults = wrapResultsDBR(results);
+      }else if (engine === "ZXing") {
+        if (!readerZXing) {
+          await initZXing();
+        }
+        let result = await readerZXing.decodeFromImageElement(img);
+        console.log(result);
+        wrappedResults = wrapResultsZXing([result]);
+      }else {
+        let results = await readerZBar.scanImageData(getImageDataFromImg(img));
+        console.log(results);
+        wrappedResults = wrapResultsZBar(results);
+      }
+      console.log(wrappedResults);
+      document.getElementById("status").innerText = "";
+    }
+
+    async function initDBR(){
+      readerDBR = await Dynamsoft.DBR.BarcodeReader.createInstance();
+    }
+
+    function initZXing(){
+      readerZXing = new ZXingBrowser.BrowserMultiFormatReader();
+    }
+
+    function wrapResultsDBR(results){
+      let wrappedResultArray = [];
+      for (let i = 0; i < results.length; i++) {
+        const result = results[i];
+        let wrappedResult = {};
+        wrappedResult.barcodeText = result.barcodeText;
+        wrappedResult.barcodeFormat = result.barcodeFormatString;
+        wrappedResult.points = [];
+        for (let j = 1; j <= 4; j++) {
+          let point = {};
+          point.x = result.localizationResult["x"+j];
+          point.y = result.localizationResult["y"+j];
+          wrappedResult.points.push(point);  
+        }
+        wrappedResultArray.push(wrappedResult);
+      }
+      return wrappedResultArray;
+    }
+
+    function wrapResultsZXing(results){
+      let wrappedResultArray = [];
+      for (let i = 0; i < results.length; i++) {
+        const result = results[i];
+        let wrappedResult = {};
+        wrappedResult.barcodeText = result.text;
+        wrappedResult.barcodeFormat = result.getBarcodeFormat();
+        wrappedResult.points = [];
+        result.getResultPoints().forEach(resultPoint => {
+          let point = {};
+          point.x = resultPoint.x;
+          point.y = resultPoint.y;
+          wrappedResult.points.push(point);  
+        });
+        wrappedResultArray.push(wrappedResult);
+      }
+      return wrappedResultArray;
+    }
+
+    function wrapResultsZBar(results){
+      let wrappedResultArray = [];
+      for (let i = 0; i < results.length; i++) {
+        const result = results[i];
+        let wrappedResult = {};
+        wrappedResult.barcodeText = result.decode();
+        wrappedResult.barcodeFormat = result.typeName;
+        wrappedResult.points = result.points;
+        wrappedResultArray.push(wrappedResult);
+      }
+      return wrappedResultArray;
     }
 
 
     function loadImageFromURL(){
       let imgsrc = getUrlParam("imgsrc");
       if (imgsrc) {
-        const img = new Image();
+        img = new Image();
         img.src = imgsrc;
         img.onload = function(){
-          let dataURL = getDataURLFromImg(img);
           let svgElement = document.getElementById("resultSVG");
           let svgImage = document.createElementNS("http://www.w3.org/2000/svg", "image");
-          svgImage.setAttribute("href",dataURL);
+          svgImage.setAttribute("href",imgsrc);
           svgElement.setAttribute("viewBox","0 0 "+img.width+" "+img.height);
           svgElement.appendChild(svgImage);
         }
@@ -69,13 +163,21 @@
       }
     }
 
+    function getImageDataFromImg(img) {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      return ctx.getImageData(0, 0, img.width, img.height);
+    };
+
     function getDataURLFromImg(img) {
       const canvas = document.createElement("canvas");
       canvas.width = img.width;
       canvas.height = img.height;
       const ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0);
-      //ctx.getImageData(0, 0, img.width, img.height);
       return canvas.toDataURL();
     };
 
@@ -89,6 +191,13 @@
       var r = window.location.search.substr(1).match(reg);
       if (r != null) return unescape(r[2]); return null;
     }
+
+    function getDataURLOfTheCurrentImage(){
+      let svgElement = document.getElementById("resultSVG");
+      let svgImage = svgElement.getElementsByTagName("image")[0];
+      return svgImage.getAttribute("href");
+    }
+
   </script>
 </body>
 
