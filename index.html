@@ -38,6 +38,10 @@
   </div>
   <div>
     <svg id="resultSVG" version="1.1" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div id="intermediateResults" style="display:none;">
+      Binarized image produced by Dynamsoft Barcode Reader:
+      <img id="binarizedImage"/>
+    </div>
   </div>
   <div>
     <p>Template for Dynamsoft Barcode Reader:</p>
@@ -56,6 +60,7 @@
     }
 
     async function decode(){
+      toggleDisplayOfIntermediateResult(false);
       let engine = getEngine();
       document.getElementById("status").innerText = "decoding...";
       let wrappedResults;
@@ -65,6 +70,8 @@
         }
         await updateDBRRuntimeSettings();
         let results = await readerDBR.decode(img);
+        toggleDisplayOfIntermediateResult(true);
+        displayBinarizedImage();
         wrappedResults = wrapResultsDBR(results);
       }else if (engine === "ZXing") {
         if (!readerZXing) {
@@ -88,6 +95,14 @@
       document.getElementById("status").innerText = "";
     }
 
+    async function toggleDisplayOfIntermediateResult(display){
+      if (display) {
+        document.getElementById("intermediateResults").style.display = "";
+      }else{
+        document.getElementById("intermediateResults").style.display = "none";
+      }
+    }
+
     async function initDBR(){
       readerDBR = await Dynamsoft.DBR.BarcodeReader.createInstance();
     }
@@ -101,6 +116,22 @@
         console.log("reset runtime settings");
         await readerDBR.resetRuntimeSettings();
       }
+      await updateIntermediateResultSetting();
+    }
+
+    async function updateIntermediateResultSetting(){
+      let settings = await readerDBR.getRuntimeSettings();
+      settings.intermediateResultTypes = Dynamsoft.DBR.EnumIntermediateResultType.IRT_BINARIZED_IMAGE;
+      await readerDBR.updateRuntimeSettings(settings);
+    }
+
+    async function displayBinarizedImage(){
+      let intermediateResults = await readerDBR.getIntermediateResults();
+      console.log(intermediateResults);
+      let cvsArray = await readerDBR.getIntermediateCanvas();
+      let cvs = cvsArray[0];
+      let binarizedImage = document.getElementById("binarizedImage");
+      binarizedImage.src = cvs.toDataURL();
     }
 
     function initZXing(){
