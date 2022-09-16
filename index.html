@@ -241,6 +241,7 @@
     function loadTemplateFromURL(){
       let template = getUrlParam("template");
       if (template) {
+        template = prettifyJSON(template);
         document.getElementById("template").textContent = template;
       }
     }
@@ -278,6 +279,14 @@
       let svgElement = document.getElementById("resultSVG");
       let svgImage = svgElement.getElementsByTagName("image")[0];
       return svgImage.getAttribute("href");
+    }
+    
+    function prettifyJSON(str) {
+      return JSON.stringify(JSON.parse(str),null,4);
+    }
+    
+    function minifyJSON(str) {
+      return JSON.stringify(JSON.parse(str),null,0);
     }
 
   </script>
