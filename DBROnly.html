@@ -25,6 +25,10 @@
 
 <body>
   <div>
+    <div>
+      Load local image:
+      <input type="file" id="barcodeFile" onchange="loadImageFromFile();" accept=".jpg,.jpeg,.png,.bmp" />
+    </div>
     <button onclick="decode()">Decode</button>
     <span id="status"></span>
   </div>
@@ -32,6 +36,7 @@
     <svg id="resultSVG" version="1.1" xmlns="http://www.w3.org/2000/svg"></svg>
     <div id="intermediateResults" style="display:none;">
       Binarized image produced by Dynamsoft Barcode Reader:
+      <br/>
       <img id="binarizedImage"/>
     </div>
   </div>
@@ -45,8 +50,25 @@
     let img;
 
     window.onload = function() {
-      loadImageFromURL();
+      let imgsrc = getUrlParam("imgsrc");
+      loadImage(imgsrc);
       loadTemplateFromURL();
+    }
+
+    function loadImageFromFile() { 
+      let files = document.getElementById('barcodeFile').files;
+      if (files.length == 0) {
+        return;
+      }
+      let file = files[0];
+      fileReader = new FileReader();
+      fileReader.onload = function(e){
+        loadImage(e.target.result);
+      };
+      fileReader.onerror = function () {
+        console.warn('oops, something went wrong.');
+      };
+      fileReader.readAsDataURL(file);
     }
 
     async function decode(){
@@ -158,8 +180,7 @@
     }
 
 
-    function loadImageFromURL(){
-      let imgsrc = getUrlParam("imgsrc");
+    function loadImage(imgsrc){
       if (imgsrc) {
         img = new Image();
         img.src = imgsrc;
