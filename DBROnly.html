@@ -190,6 +190,7 @@
         img.src = imgsrc;
         img.onload = function(){
           let svgElement = document.getElementById("resultSVG");
+          svgElement.innerHTML = "";
           let svgImage = document.createElementNS("http://www.w3.org/2000/svg", "image");
           svgImage.setAttribute("href",imgsrc);
           svgElement.setAttribute("viewBox","0 0 "+img.width+" "+img.height);
