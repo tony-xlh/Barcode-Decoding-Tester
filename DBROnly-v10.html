@@ -111,33 +111,40 @@
       router = await Dynamsoft.CVR.CaptureVisionRouter.createInstance();
       const intermediateResultReceiver = new Dynamsoft.CVR.IntermediateResultReceiver();
       intermediateResultReceiver.onBinaryImageUnitReceived = async (result, info) => {
-          console.log(result);
-          console.log(document.getElementById("binarizedImage").src)
-          if (document.getElementById("binarizedImage").src.indexOf("base64") != -1) {
-            return; //only use the first binarized image
-          }
-          const canvas = document.createElement("canvas");
-          canvas.width = result.imageData.width;
-          canvas.height = result.imageData.height;
-          const context = canvas.getContext("2d");
-          context.fillStyle = "white";
-          context.fillRect(0, 0, canvas.width, canvas.height);
-          const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-          const pixels = imageData.data;
-          let index = 0;
-          for (var i = 0; i < pixels.length; i += 4) {
-            const value = result.imageData.bytes[index];
-            pixels[i] = 255 - value;
-            pixels[i + 1] = 255 - value;
-            pixels[i + 2] = 255 - value;
-            index = index + 1;
-          }
-          context.putImageData(imageData, 0, 0);
-          document.getElementById("binarizedImage").src = canvas.toDataURL();
-          toggleDisplayOfIntermediateResult(true);
+        console.log(result);
+        displayBinarizedImage(result);
+      };
+      intermediateResultReceiver.onTextureRemovedBinaryImageUnitReceived = async (result, info) => {
+        console.log(result);
+        displayBinarizedImage(result);
       };
       const intermediateResultManager = router.getIntermediateResultManager();
       intermediateResultManager.addResultReceiver(intermediateResultReceiver);
+    }
+
+    function displayBinarizedImage(result){
+      //if (document.getElementById("binarizedImage").src.indexOf("base64") != -1) {
+      //  return; //only use the first binarized image
+      //}
+      const canvas = document.createElement("canvas");
+      canvas.width = result.imageData.width;
+      canvas.height = result.imageData.height;
+      const context = canvas.getContext("2d");
+      context.fillStyle = "white";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+      const pixels = imageData.data;
+      let index = 0;
+      for (var i = 0; i < pixels.length; i += 4) {
+        const value = result.imageData.bytes[index];
+        pixels[i] = 255 - value;
+        pixels[i + 1] = 255 - value;
+        pixels[i + 2] = 255 - value;
+        index = index + 1;
+      }
+      context.putImageData(imageData, 0, 0);
+      document.getElementById("binarizedImage").src = canvas.toDataURL();
+      toggleDisplayOfIntermediateResult(true);
     }
 
     async function updateDBRRuntimeSettings(){
