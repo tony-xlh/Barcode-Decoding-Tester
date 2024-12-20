@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Barcode Reader</title>
+  <script src="https://cdn.jsdelivr.net/npm/dynamsoft-barcode-reader-bundle@10.4.2002/dist/dbr.bundle.js"></script>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=0" />
+  <style>
+    .barcode-polygon {
+      fill:rgba(85,240,40,0.4);
+      stroke:green;
+      stroke-width:5;
+    }
+    
+    .barcode-polygon:hover {
+      fill:rgba(85,240,40,0.6);
+      stroke:green;
+      stroke-width:5;
+    }
+
+    #resultSVG {
+      max-width: 500px;
+    }
+
+    #binarizedImage {
+      max-width: 500px;
+    }
+    </style>
+</head>
+
+<body>
+  <div>
+    <div>
+      Load local image:
+      <input type="file" id="barcodeFile" onchange="loadImageFromFile();" accept=".jpg,.jpeg,.png,.bmp" />
+    </div>
+    <button onclick="decode()">Decode</button>
+    <span id="status"></span>
+  </div>
+  <div>
+    <svg id="resultSVG" version="1.1" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div id="intermediateResults" style="display:none;">
+      Binarized image produced by Dynamsoft Barcode Reader:
+      <br/>
+      <img id="binarizedImage"/>
+      Preprocessed image produced by Dynamsoft Barcode Reader:
+      <br/>
+      <img id="preprocessedImage"/>
+    </div>
+  </div>
+  <div>
+    <p>Template for Dynamsoft Barcode Reader:</p>
+    <textarea id="template" style="width:250px;height:100px;"></textarea>
+  </div>
+  
+  <script>
+    let router;
+    let img;
+    let templateName = "ReadBarcodes_Default";
+
+    window.onload = function() {
+      let imgsrc = getUrlParam("imgsrc");
+      loadImage(imgsrc);
+      loadTemplateFromURL();
+    }
+
+    function loadImageFromFile() { 
+      let files = document.getElementById('barcodeFile').files;
+      if (files.length == 0) {
+        return;
+      }
+      let file = files[0];
+      fileReader = new FileReader();
+      fileReader.onload = function(e){
+        loadImage(e.target.result);
+      };
+      fileReader.onerror = function () {
+        console.warn('oops, something went wrong.');
+      };
+      fileReader.readAsDataURL(file);
+    }
+
+    async function decode(){
+      toggleDisplayOfIntermediateResult(false);
+      document.getElementById("status").innerText = "decoding...";
+      let wrappedResults;
+      if (!router) {
+        await initDBR();
+      }
+      await updateDBRRuntimeSettings();
+      document.getElementById("binarizedImage").src = "";
+      let result = await router.capture(img,templateName);
+      if (result.barcodeResultItems) {
+        wrappedResults = wrapResultsDBR(result.barcodeResultItems);
+        console.log(wrappedResults);
+        overlayResults(wrappedResults);
+      }
+      document.getElementById("status").innerText = "";
+    }
+
+    async function toggleDisplayOfIntermediateResult(display){
+      if (display) {
+        document.getElementById("intermediateResults").style.display = "";
+      }else{
+        document.getElementById("intermediateResults").style.display = "none";
+      }
+    }
+
+    async function initDBR(){
+      await Dynamsoft.License.LicenseManager.initLicense("DLS2eyJvcmdhbml6YXRpb25JRCI6IjIwMDAwMSJ9",true);
+      await Dynamsoft.Core.CoreModule.loadWasm(["dbr"]);
+      router = await Dynamsoft.CVR.CaptureVisionRouter.createInstance();
+      const intermediateResultReceiver = new Dynamsoft.CVR.IntermediateResultReceiver();
+      intermediateResultReceiver.onBinaryImageUnitReceived = async (result, info) => {
+          console.log(result);
+          console.log(document.getElementById("binarizedImage").src)
+          if (document.getElementById("binarizedImage").src.indexOf("base64") != -1) {
+            return; //only use the first binarized image
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = result.imageData.width;
+          canvas.height = result.imageData.height;
+          const context = canvas.getContext("2d");
+          context.fillStyle = "white";
+          context.fillRect(0, 0, canvas.width, canvas.height);
+          const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+          const pixels = imageData.data;
+          let index = 0;
+          for (var i = 0; i < pixels.length; i += 4) {
+            const value = result.imageData.bytes[index];
+            pixels[i] = 255 - value;
+            pixels[i + 1] = 255 - value;
+            pixels[i + 2] = 255 - value;
+            index = index + 1;
+          }
+          context.putImageData(imageData, 0, 0);
+          document.getElementById("binarizedImage").src = canvas.toDataURL();
+          toggleDisplayOfIntermediateResult(true);
+      };
+      const intermediateResultManager = router.getIntermediateResultManager();
+      intermediateResultManager.addResultReceiver(intermediateResultReceiver);
+    }
+
+    async function updateDBRRuntimeSettings(){
+      let template = document.getElementById("template").value;
+      if (template) {
+        console.log("update runtime settings with template");
+        await router.initSettings(template);
+      }
+    }
+
+    function wrapResultsDBR(results){
+      let wrappedResultArray = [];
+      for (let i = 0; i < results.length; i++) {
+        const result = results[i];
+        let wrappedResult = {};
+        wrappedResult.barcodeText = result.text;
+        wrappedResult.barcodeFormat = result.formatString;
+        wrappedResult.points = [];
+        for (let j = 0; j < 4; j++) {
+          let point = {};
+          point.x = result.location.points[j].x;
+          point.y = result.location.points[j].y;
+          wrappedResult.points.push(point);  
+        }
+        wrappedResultArray.push(wrappedResult);
+      }
+      return wrappedResultArray;
+    }
+
+    function overlayResults(results){
+      let svgElement = document.getElementById("resultSVG");
+      clearElements(svgElement,"polygon");
+      for (let i = 0; i < results.length; i++) {
+        const result = results[i];
+        let a = document.createElementNS("http://www.w3.org/2000/svg","a");
+        let polygon = document.createElementNS("http://www.w3.org/2000/svg","polygon");
+        polygon.setAttribute("points",getPointsAttributeFromArray(result.points));
+        polygon.setAttribute("class","barcode-polygon");
+        let title = document.createElementNS("http://www.w3.org/2000/svg","title");
+        title.textContent = result.barcodeFormat + ": " + result.barcodeText;
+        polygon.append(title);
+        a.append(polygon)
+        svgElement.append(a);
+      }
+    }
+
+    function getPointsAttributeFromArray(points) {
+      let value = "";
+      points.forEach(point => {
+        value = value + point.x + " " + point.y + " ";
+      });
+      return value.trim();
+    }
+
+    function clearElements(parent,tagName){
+      let elements=parent.getElementsByTagName(tagName);
+      while (elements.length>0){
+        let ele=elements[0];
+        ele.remove();
+      }
+    }
+
+
+    function loadImage(imgsrc){
+      if (imgsrc) {
+        img = new Image();
+        img.src = imgsrc;
+        img.onload = function(){
+          let svgElement = document.getElementById("resultSVG");
+          svgElement.innerHTML = "";
+          let svgImage = document.createElementNS("http://www.w3.org/2000/svg", "image");
+          svgImage.setAttribute("href",imgsrc);
+          svgElement.setAttribute("viewBox","0 0 "+img.width+" "+img.height);
+          svgElement.appendChild(svgImage);
+        }
+      }
+    }
+
+    function loadTemplateFromURL(){
+      let template = getUrlParam("template");
+      if (template) {
+        template = prettifyJSON(template);
+        document.getElementById("template").textContent = template;
+      }
+    }
+
+    function getImageDataFromImg(img) {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      return ctx.getImageData(0, 0, img.width, img.height);
+    };
+
+    function getDataURLFromImg(img) {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      return canvas.toDataURL();
+    };
+    
+    function getUrlParam(name) {
+      var reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)");
+      var r = window.location.search.substr(1).match(reg);
+      if (r != null) return unescape(r[2]); return null;
+    }
+
+    function getDataURLOfTheCurrentImage(){
+      let svgElement = document.getElementById("resultSVG");
+      let svgImage = svgElement.getElementsByTagName("image")[0];
+      return svgImage.getAttribute("href");
+    }
+    
+    function prettifyJSON(str) {
+      return JSON.stringify(JSON.parse(str),null,4);
+    }
+    
+    function minifyJSON(str) {
+      return JSON.stringify(JSON.parse(str),null,0);
+    }
+
+  </script>
+</body>
+
+</html>
